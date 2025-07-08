@@ -176,6 +176,8 @@
     let obstaclesSpawned = 0;
     let isPaused = false;
     let pausedAt = 0;
+    let direction = "right";
+    let nextDirection = "right";
 
     let bestScore = {
       meat: 0,
@@ -478,6 +480,9 @@
     function move() {
       if (isPaused) return;
 
+      direction = nextDirection;
+      isMoving = true;
+
       const head = { ...snake[0] };
       if (direction === "up") head.y -= 1;
       if (direction === "down") head.y += 1;
@@ -487,7 +492,7 @@
       head.x = (head.x + GRID_X) % GRID_X;
       head.y = (head.y + GRID_Y) % GRID_Y;
 
-      if (snake.some((s) => s.x === head.x && s.y === head.y)) {
+      if (snake.slice(0, -1).some((s) => s.x === head.x && s.y === head.y)) {
         gameOver();
         return;
       }
@@ -496,7 +501,7 @@
 
       if (head.x === food.x && head.y === food.y) {
         score++;
-        speed = Math.max(60, speed - 10);
+        speed = Math.max(70, speed - 3);
         clearInterval(gameInterval);
         gameInterval = setInterval(move, speed);
         spawnFood();
@@ -630,10 +635,10 @@
         return;
       }
       if (!isMoving) return;
-      if (e.key === "ArrowUp" && direction !== "down") direction = "up";
-      if (e.key === "ArrowDown" && direction !== "up") direction = "down";
-      if (e.key === "ArrowLeft" && direction !== "right") direction = "left";
-      if (e.key === "ArrowRight" && direction !== "left") direction = "right";
+      if (e.key === "ArrowUp" && direction !== "down") nextDirection = "up";
+      if (e.key === "ArrowDown" && direction !== "up") nextDirection = "down";
+      if (e.key === "ArrowLeft" && direction !== "right") nextDirection = "left";
+      if (e.key === "ArrowRight" && direction !== "left") nextDirection = "right";
       isMoving = false;
       if (e.code === "Space") {
         shootTongue();
@@ -657,31 +662,32 @@
     let origin = { x: joystick.offsetLeft + joystick.offsetWidth / 2, y: joystick.offsetTop + joystick.offsetHeight / 2 };
     let touchId = null;
 
-    function updateDirection(dx, dy) {
-      // Определяем преобладающее направление (вверх, вниз, влево, вправо)
-      if (Math.abs(dx) > Math.abs(dy)) {
-        if (dx > 10) changeDirection('right');
-        else if (dx < -10) changeDirection('left');
-      } else {
-        if (dy > 10) changeDirection('down');
-        else if (dy < -10) changeDirection('up');
-      }
-    }
-
     function changeDirection(dir) {
-      // Тут меняешь переменную direction для змейки
-      if (direction !== dir) {
-        // Запрет на разворот змеи на 180 градусов (если надо)
+      if (direction !== dir && isMoving) {
         if (
                 (dir === 'up' && direction !== 'down') ||
                 (dir === 'down' && direction !== 'up') ||
                 (dir === 'left' && direction !== 'right') ||
                 (dir === 'right' && direction !== 'left')
         ) {
-          direction = dir;
-          isMoving = false; // чтобы разрешить движение в новом направлении
+          nextDirection = dir;   // Обрати внимание — меняем nextDirection, а не direction
+          isMoving = false;      // Блокируем смену направления до следующего шага
         }
       }
+    }
+
+    function updateDirection(dx, dy) {
+      if (!isMoving) return; // ← защита от спама во время одного кадра
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 10) changeDirection("right");
+        else if (dx < -10) changeDirection("left");
+      } else {
+        if (dy > 10) changeDirection("down");
+        else if (dy < -10) changeDirection("up");
+      }
+
+      isMoving = false; // ← запрет смены направления до следующего шага
     }
 
     joystick.addEventListener('touchstart', (e) => {
