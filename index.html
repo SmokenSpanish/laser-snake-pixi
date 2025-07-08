@@ -9,6 +9,8 @@
     html,
     body {
       margin: 0;
+      padding: 0;
+      width: 100%;
       height: 100%;
       background: #111;
       display: flex;
@@ -22,6 +24,7 @@
     canvas {
       box-shadow: 0 0 30px rgba(0, 255, 0, 0.2);
       image-rendering: pixelated;
+      display: block;
     }
 
     #overlay {
@@ -60,6 +63,52 @@
     #overlay button:hover {
       background: #0c0;
     }
+
+    #joystick {
+      position: fixed;
+      bottom: 40px;
+      left: 200px;
+      width: 120px;
+      height: 120px;
+      background: rgba(0, 255, 0, 0.2);
+      border-radius: 50%;
+      touch-action: none;
+      user-select: none;
+      z-index: 9999;
+    }
+    #stick {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background: rgba(0, 255, 0, 0.6);
+      border-radius: 50%;
+      top: 30px;
+      left: 30px;
+      transition: top 0.1s, left 0.1s;
+    }
+
+    #attackBtn {
+      position: fixed;
+      bottom: 60px;
+      right: 200px;
+      width: 80px;
+      height: 80px;
+      background: rgba(255, 102, 204, 0.6);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      color: white;
+      font-size: 20px;
+      user-select: none;
+      touch-action: none;
+      z-index: 9999;
+    }
+
+    #attackBtn:active {
+      background: rgba(255, 102, 204, 0.9);
+    }
   </style>
 </head>
 
@@ -68,18 +117,27 @@
     <div id="message">🐍 SNAKE PIXI</div>
     <button id="startBtn">Играть</button>
   </div>
+  <div id="joystick">
+    <div id="stick"></div>
+  </div>
+  <div id="attackBtn">🔥</div>
 
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.2.4/dist/pixi.min.js"></script>
   <script>
-    const CELL = 25;
-    const GRID = 20;
+
+    // const GRID = 20;
+
+    const GRID_X = 20;
+    const GRID_Y = 20;
 
     const app = new PIXI.Application({
-      width: GRID * CELL,
-      height: GRID * CELL,
+      resizeTo: window,
       backgroundColor: 0x222222,
     });
     document.body.appendChild(app.view);
+
+    const backgroundSnakes = new PIXI.Container();
+    app.stage.addChildAt(backgroundSnakes, 0);
 
     const snakeGraphics = new PIXI.Container();
     const foodGraphics = new PIXI.Graphics();
@@ -116,6 +174,8 @@
     let foodHue = 0;
     let obstacles = [];
     let obstaclesSpawned = 0;
+    let isPaused = false;
+    let pausedAt = 0;
 
     let bestScore = {
       meat: 0,
@@ -149,6 +209,89 @@
     let tongueLength = 3;
     let tongueCooldown = false;
 
+    function getCellSize() {
+      return Math.floor(Math.min(app.screen.width / GRID_X, app.screen.height / GRID_Y));
+    }
+
+    function getCellWidth() {
+      return Math.floor(app.screen.width / GRID_X);
+    }
+
+    function getCellHeight() {
+      return Math.floor(app.screen.height / GRID_Y);
+    }
+
+    const gridGraphics = new PIXI.Graphics();
+    app.stage.addChildAt(gridGraphics, 0); // На самый задний слой, под backgroundSnakes
+
+    function drawGrid() {
+      gridGraphics.clear();
+      const w = app.screen.width;
+      const h = app.screen.height;
+      const cellW = getCellWidth();
+      const cellH = getCellHeight();
+
+      gridGraphics.lineStyle(1, 0x00ff00, 0.1); // прозрачный зелёный
+
+      // Вертикальные линии
+      for (let x = 0; x <= GRID_X; x++) {
+        gridGraphics.moveTo(x * cellW, 0);
+        gridGraphics.lineTo(x * cellW, h);
+      }
+
+      // Горизонтальные линии
+      for (let y = 0; y <= GRID_Y; y++) {
+        gridGraphics.moveTo(0, y * cellH);
+        gridGraphics.lineTo(w, y * cellH);
+      }
+    }
+
+    // Рисуем сетку
+    drawGrid();
+
+    const borderGraphics = new PIXI.Graphics();
+    app.stage.addChild(borderGraphics);
+
+    function drawBorder() {
+      borderGraphics.clear();
+      borderGraphics.lineStyle(4, 0x00ff00);
+      borderGraphics.drawRect(
+              getOffsetX(),               // смещение по X, чтобы центрировать поле
+              getOffsetY(),               // смещение по Y
+              getCellSize() * GRID_X,     // ширина игрового поля (размер клетки * кол-во клеток)
+              getCellSize() * GRID_Y      // высота игрового поля
+      );
+    }
+
+    drawBorder();
+
+    function drawBackgroundSnakes() {
+      backgroundSnakes.removeChildren();
+
+      const cellWidth = Math.floor(app.screen.width / GRID_X);
+      const cellHeight = Math.floor(app.screen.height / GRID_Y);
+
+      const snakeLength = 3;
+
+      for (let x = 0; x < GRID_X; x++) {
+        for (let y = 0; y < GRID_Y; y++) {
+          if (x + snakeLength <= GRID_X) {
+            for (let i = 0; i < snakeLength; i++) {
+              const g = new PIXI.Graphics();
+              g.beginFill(0x004400, 0.1);
+              g.drawCircle(
+                      (x + i) * cellWidth + cellWidth / 2,
+                      y * cellHeight + cellHeight / 2,
+                      Math.min(cellWidth, cellHeight) / 3
+              );
+              g.endFill();
+              backgroundSnakes.addChild(g);
+            }
+          }
+        }
+      }
+    }
+    drawBackgroundSnakes()
     function formatTime(ms) {
       const totalSeconds = Math.floor(ms / 1000);
       const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
@@ -156,10 +299,18 @@
       return `${minutes}:${seconds}`;
     }
 
+    function getOffsetX() {
+      return Math.floor((app.screen.width - getCellSize() * GRID_X) / 2);
+    }
+
+    function getOffsetY() {
+      return Math.floor((app.screen.height - getCellSize() * GRID_Y) / 2);
+    }
+
     function spawnFood() {
       while (true) {
-        const fx = Math.floor(Math.random() * GRID);
-        const fy = Math.floor(Math.random() * GRID);
+        const fx = Math.floor(Math.random() * GRID_X);
+        const fy = Math.floor(Math.random() * GRID_Y);
 
         const onSnake = snake.some((s) => s.x === fx && s.y === fy);
         const onObstacle = obstacles.some((o) => o.x === fx && o.y === fy);
@@ -172,7 +323,11 @@
 
       foodGraphics.clear();
       foodGraphics.beginFill(PIXI.utils.string2hex(hslToHex(foodHue, 100, 50)));
-      foodGraphics.drawCircle(food.x * CELL + CELL / 2, food.y * CELL + CELL / 2, CELL * 0.3);
+      foodGraphics.drawCircle(
+              food.x * getCellSize() + getCellSize() / 2 + getOffsetX(),
+              food.y * getCellSize() + getCellSize() / 2 + getOffsetY(),
+              getCellSize() * 0.3
+      );
       foodGraphics.endFill();
     }
 
@@ -207,8 +362,8 @@
       if (direction === "right") dx = 1;
 
       return {
-        x: (head.x + dx + GRID) % GRID,
-        y: (head.y + dy + GRID) % GRID,
+        x: (head.x + dx + GRID_X) % GRID_X,
+        y: (head.y + dy + GRID_Y) % GRID_Y,
       };
     }
 
@@ -217,8 +372,8 @@
 
       let attempts = 0;
       while (attempts < 100) {
-        const ox = Math.floor(Math.random() * GRID);
-        const oy = Math.floor(Math.random() * GRID);
+        const ox = Math.floor(Math.random() * GRID_X);
+        const oy = Math.floor(Math.random() * GRID_Y);
         const occupied =
           snake.some(p => p.x === ox && p.y === oy) ||
           food.x === ox && food.y === oy ||
@@ -236,14 +391,18 @@
     function drawSnake() {
       snakeGraphics.removeChildren();
 
+      const size = getCellSize();
+      const offsetX = getOffsetX();
+      const offsetY = getOffsetY();
+
       // Отрисовка препятствий
       for (let obs of obstacles) {
         const g = new PIXI.Graphics();
         g.beginFill(0xff0000);
-        g.drawRect(0, 0, CELL, CELL);
+        g.drawRect(0, 0, size, size);
         g.endFill();
-        g.x = obs.x * CELL;
-        g.y = obs.y * CELL;
+        g.x = obs.x * size + offsetX;
+        g.y = obs.y * size + offsetY;
         snakeGraphics.addChild(g);
       }
 
@@ -252,10 +411,14 @@
         const g = new PIXI.Graphics();
         const alpha = 1 - i * 0.1;
         g.beginFill(i === 0 ? 0xffff00 : 0x00ff00, alpha > 0.3 ? alpha : 0.3);
-        g.drawCircle(CELL / 2, CELL / 2, (CELL - 4) / 2);
+        g.drawCircle(
+                size / 2,
+                size / 2,
+                size / 2 - 2
+        );
         g.endFill();
-        g.x = snake[i].x * CELL;
-        g.y = snake[i].y * CELL;
+        g.x = snake[i].x * size + offsetX;
+        g.y = snake[i].y * size + offsetY;
         snakeGraphics.addChild(g);
       }
     }
@@ -281,8 +444,10 @@
 
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
-        updateUI();
-        animateFood();
+        if (!isPaused) {    // <--- НЕ обновляем UI и анимацию, если пауза
+          updateUI();
+          animateFood();
+        }
       }, 50);
     }
 
@@ -295,21 +460,32 @@
     function animateFood() {
       foodHue += 2;
       if (foodHue >= 360) foodHue = 0;
+
+      const size = getCellSize();
+      const offsetX = getOffsetX();
+      const offsetY = getOffsetY();
+
       foodGraphics.clear();
       foodGraphics.beginFill(PIXI.utils.string2hex(hslToHex(foodHue, 100, 50)));
-      foodGraphics.drawCircle(food.x * CELL + CELL / 2, food.y * CELL + CELL / 2, CELL * 0.3);
+      foodGraphics.drawCircle(
+              food.x * size + size / 2 + offsetX,
+              food.y * size + size / 2 + offsetY,
+              size * 0.3
+      );
       foodGraphics.endFill();
     }
 
     function move() {
+      if (isPaused) return;
+
       const head = { ...snake[0] };
       if (direction === "up") head.y -= 1;
       if (direction === "down") head.y += 1;
       if (direction === "left") head.x -= 1;
       if (direction === "right") head.x += 1;
 
-      head.x = (head.x + GRID) % GRID;
-      head.y = (head.y + GRID) % GRID;
+      head.x = (head.x + GRID_X) % GRID_X;
+      head.y = (head.y + GRID_Y) % GRID_Y;
 
       if (snake.some((s) => s.x === head.x && s.y === head.y)) {
         gameOver();
@@ -355,31 +531,38 @@
       if (direction === "left") dx = -1;
       if (direction === "right") dx = 1;
 
+      const size = getCellSize();
+      const offsetX = getOffsetX();
+      const offsetY = getOffsetY();
+
       tongueGraphics.clear();
       tongueGraphics.beginFill(0xff66cc);
 
-      for (let i = 1; i <= tongueLength; i++) {
-        const tx = (head.x + dx * i + GRID) % GRID;
-        const ty = (head.y + dy * i + GRID) % GRID;
+      // начинаем с i = 2, а длину увеличим на 1
+      for (let i = 2; i <= tongueLength + 1; i++) {
+        const tx = (head.x + dx * i + GRID_X) % GRID_X;
+        const ty = (head.y + dy * i + GRID_Y) % GRID_Y;
 
-        // Нарисуем "язык"
-        tongueGraphics.drawRect(tx * CELL + CELL / 4, ty * CELL + CELL / 4, CELL / 2, CELL / 2);
+        tongueGraphics.drawRect(
+                tx * size + size / 4 + offsetX,
+                ty * size + size / 4 + offsetY,
+                size / 2,
+                size / 2
+        );
 
-        // Проверим, есть ли препятствие
         const hitIndex = obstacles.findIndex(o => o.x === tx && o.y === ty);
         if (hitIndex !== -1) {
-          // Съедаем препятствие
           obstacles.splice(hitIndex, 1);
         }
       }
 
       tongueGraphics.endFill();
-      drawSnake(); // перерисуем без удалённых препятствий
+      drawSnake();
 
       setTimeout(() => {
         tongueGraphics.clear();
         tongueCooldown = false;
-      }, 200); // язык исчезает через 200 мс
+      }, 200);
     }
 
     function gameOver() {
@@ -412,7 +595,40 @@
       bestText.text = `Лучшее: ${bestScore.meat} мясо / ${formatTime(bestScore.time)}`;
     }
 
+    window.addEventListener('resize', () => {
+      drawSnake();
+      spawnFood();
+      spawnObstacle();
+      drawGrid();
+      drawBackgroundSnakes();
+      drawBorder();
+    });
+
     window.addEventListener("keydown", (e) => {
+      //pause
+      if (e.key === "Escape") {
+        isPaused = !isPaused;
+
+        if (isPaused) {
+          clearInterval(timerInterval);      // Останавливаем таймер
+          pausedAt = Date.now();             // Сохраняем момент паузы
+          message.textContent = "⏸ Пауза";
+          overlay.classList.remove("hidden");
+        } else {
+          // Вычитаем паузу из стартового времени
+          const pausedDuration = Date.now() - pausedAt;
+          startTime += pausedDuration;
+
+          timerInterval = setInterval(() => {
+            const now = Date.now();
+            timeText.text = "Время: " + formatTime(now - startTime);
+          }, 1000);
+
+          overlay.classList.add("hidden");
+        }
+
+        return;
+      }
       if (!isMoving) return;
       if (e.key === "ArrowUp" && direction !== "down") direction = "up";
       if (e.key === "ArrowDown" && direction !== "up") direction = "down";
@@ -424,11 +640,99 @@
       }
     });
 
+
     // Запускать игру после нажатия кнопки
     startBtn.addEventListener("click", startGame);
 
     // Сначала показываем меню
     overlay.classList.remove('hidden');
+
+
+    //joystick
+    const joystick = document.getElementById('joystick');
+    const stick = document.getElementById('stick');
+
+    const maxDistance = 40; // Максимальный радиус движения стика от центра
+
+    let origin = { x: joystick.offsetLeft + joystick.offsetWidth / 2, y: joystick.offsetTop + joystick.offsetHeight / 2 };
+    let touchId = null;
+
+    function updateDirection(dx, dy) {
+      // Определяем преобладающее направление (вверх, вниз, влево, вправо)
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 10) changeDirection('right');
+        else if (dx < -10) changeDirection('left');
+      } else {
+        if (dy > 10) changeDirection('down');
+        else if (dy < -10) changeDirection('up');
+      }
+    }
+
+    function changeDirection(dir) {
+      // Тут меняешь переменную direction для змейки
+      if (direction !== dir) {
+        // Запрет на разворот змеи на 180 градусов (если надо)
+        if (
+                (dir === 'up' && direction !== 'down') ||
+                (dir === 'down' && direction !== 'up') ||
+                (dir === 'left' && direction !== 'right') ||
+                (dir === 'right' && direction !== 'left')
+        ) {
+          direction = dir;
+          isMoving = false; // чтобы разрешить движение в новом направлении
+        }
+      }
+    }
+
+    joystick.addEventListener('touchstart', (e) => {
+      if (touchId !== null) return; // только один палец на джойстике
+      const touch = e.changedTouches[0];
+      touchId = touch.identifier;
+      origin = { x: joystick.offsetLeft + joystick.offsetWidth / 2, y: joystick.offsetTop + joystick.offsetHeight / 2 };
+    });
+
+    joystick.addEventListener('touchmove', (e) => {
+      if (touchId === null) return;
+      for (let touch of e.changedTouches) {
+        if (touch.identifier === touchId) {
+          let dx = touch.clientX - origin.x;
+          let dy = touch.clientY - origin.y;
+
+          // Ограничиваем стика в радиус maxDistance
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > maxDistance) {
+            dx = (dx / dist) * maxDistance;
+            dy = (dy / dist) * maxDistance;
+          }
+
+          stick.style.left = 30 + dx + 'px';
+          stick.style.top = 30 + dy + 'px';
+
+          updateDirection(dx, dy);
+          e.preventDefault();
+          break;
+        }
+      }
+    });
+
+    joystick.addEventListener('touchend', (e) => {
+      for (let touch of e.changedTouches) {
+        if (touch.identifier === touchId) {
+          touchId = null;
+          // Возвращаем стик в центр
+          stick.style.left = '30px';
+          stick.style.top = '30px';
+          break;
+        }
+      }
+    });
+
+    const attackBtn = document.getElementById('attackBtn');
+
+    attackBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); // чтобы не было срабатывания кликов под кнопкой
+      shootTongue(); // вызываем твою функцию атаки
+    });
   </script>
 </body>
 
