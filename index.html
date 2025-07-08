@@ -170,7 +170,7 @@
 
     uiContainer.addChild(scoreText, timeText);
 
-    let snake, direction, food, isMoving, score, gameInterval, speed, startTime, timerInterval;
+    let snake, food, isMoving, score, gameInterval, speed, startTime, timerInterval;
     let foodHue = 0;
     let obstacles = [];
     let obstaclesSpawned = 0;
@@ -481,7 +481,6 @@
       if (isPaused) return;
 
       direction = nextDirection;
-      isMoving = true;
 
       const head = { ...snake[0] };
       if (direction === "up") head.y -= 1;
@@ -662,33 +661,16 @@
     let origin = { x: joystick.offsetLeft + joystick.offsetWidth / 2, y: joystick.offsetTop + joystick.offsetHeight / 2 };
     let touchId = null;
 
-    function changeDirection(dir) {
-      if (direction !== dir && isMoving) {
-        if (
-                (dir === 'up' && direction !== 'down') ||
-                (dir === 'down' && direction !== 'up') ||
-                (dir === 'left' && direction !== 'right') ||
-                (dir === 'right' && direction !== 'left')
-        ) {
-          nextDirection = dir;   // Обрати внимание — меняем nextDirection, а не direction
-          isMoving = false;      // Блокируем смену направления до следующего шага
-        }
-      }
-    }
-
     function updateDirection(dx, dy) {
-      if (!isMoving) return; // ← защита от спама во время одного кадра
-
       if (Math.abs(dx) > Math.abs(dy)) {
-        if (dx > 10) changeDirection("right");
-        else if (dx < -10) changeDirection("left");
+        if (dx > 10 && direction !== "left") nextDirection = "right";
+        else if (dx < -10 && direction !== "right") nextDirection = "left";
       } else {
-        if (dy > 10) changeDirection("down");
-        else if (dy < -10) changeDirection("up");
+        if (dy > 10 && direction !== "up") nextDirection = "down";
+        else if (dy < -10 && direction !== "down") nextDirection = "up";
       }
-
-      isMoving = false; // ← запрет смены направления до следующего шага
     }
+
 
     joystick.addEventListener('touchstart', (e) => {
       if (touchId !== null) return; // только один палец на джойстике
