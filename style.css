@@ -58,10 +58,10 @@ canvas {
 
 #joystick {
     position: fixed;
-    bottom: 150px;
-    left: 200px;
-    width: 120px;
-    height: 120px;
+    bottom: 120px;
+    left: 120px;
+    width: 180px;
+    height: 180px;
     background: rgba(0, 255, 0, 0.2);
     border-radius: 50%;
     touch-action: none;
@@ -70,21 +70,21 @@ canvas {
 }
 #stick {
     position: absolute;
-    width: 60px;
-    height: 60px;
+    width: 90px;
+    height: 90px;
     background: rgba(0, 255, 0, 0.6);
     border-radius: 50%;
-    top: 30px;
-    left: 30px;
+    top: 45px;
+    left: 45px;
     transition: top 0.1s, left 0.1s;
 }
 
 #attackBtn {
     position: fixed;
-    bottom: 170px;
-    right: 200px;
-    width: 80px;
-    height: 80px;
+    bottom: 140px;
+    right: 120px;
+    width: 120px;
+    height: 120px;
     background: rgba(255, 102, 204, 0.6);
     border-radius: 50%;
     display: flex;
@@ -92,7 +92,7 @@ canvas {
     align-items: center;
     font-weight: bold;
     color: white;
-    font-size: 20px;
+    font-size: 36px;
     user-select: none;
     touch-action: none;
     z-index: 9999;

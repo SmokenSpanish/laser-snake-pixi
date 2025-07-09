@@ -123,23 +123,24 @@
 
     function drawGrid() {
       gridGraphics.clear();
-      const w = app.screen.width;
-      const h = app.screen.height;
-      const cellW = getCellWidth();
-      const cellH = getCellHeight();
+      const cellSize = getCellSize();
+      const offsetX = getOffsetX();
+      const offsetY = getOffsetY();
+      const gridWidth = cellSize * GRID_X;
+      const gridHeight = cellSize * GRID_Y;
 
       gridGraphics.lineStyle(1, 0x00ff00, 0.1); // прозрачный зелёный
 
       // Вертикальные линии
       for (let x = 0; x <= GRID_X; x++) {
-        gridGraphics.moveTo(x * cellW, 0);
-        gridGraphics.lineTo(x * cellW, h);
+        gridGraphics.moveTo(offsetX + x * cellSize, offsetY);
+        gridGraphics.lineTo(offsetX + x * cellSize, offsetY + gridHeight);
       }
 
       // Горизонтальные линии
       for (let y = 0; y <= GRID_Y; y++) {
-        gridGraphics.moveTo(0, y * cellH);
-        gridGraphics.lineTo(w, y * cellH);
+        gridGraphics.moveTo(offsetX, offsetY + y * cellSize);
+        gridGraphics.lineTo(offsetX + gridWidth, offsetY + y * cellSize);
       }
     }
 
@@ -165,21 +166,22 @@
     function drawBackgroundSnakes() {
       backgroundSnakes.removeChildren();
 
-      const cellWidth = Math.floor(app.screen.width / GRID_X);
-      const cellHeight = Math.floor(app.screen.height / GRID_Y);
-
+      // Use a finer grid to fill the entire canvas
+      const cellSize = Math.floor(Math.min(app.screen.width, app.screen.height) / Math.max(GRID_X, GRID_Y));
+      const cols = Math.ceil(app.screen.width / cellSize);
+      const rows = Math.ceil(app.screen.height / cellSize);
       const snakeLength = 3;
 
-      for (let x = 0; x < GRID_X; x++) {
-        for (let y = 0; y < GRID_Y; y++) {
-          if (x + snakeLength <= GRID_X) {
+      for (let x = 0; x < cols; x++) {
+        for (let y = 0; y < rows; y++) {
+          if (x + snakeLength <= cols) {
             for (let i = 0; i < snakeLength; i++) {
               const g = new PIXI.Graphics();
               g.beginFill(0x004400, 0.1);
               g.drawCircle(
-                      (x + i) * cellWidth + cellWidth / 2,
-                      y * cellHeight + cellHeight / 2,
-                      Math.min(cellWidth, cellHeight) / 3
+                (x + i) * cellSize + cellSize / 2,
+                y * cellSize + cellSize / 2,
+                cellSize / 3
               );
               g.endFill();
               backgroundSnakes.addChild(g);
@@ -568,10 +570,14 @@
 
 
     joystick.addEventListener('touchstart', (e) => {
-      if (touchId !== null) return; // только один палец на джойстике
+      if (touchId !== null) return;
       const touch = e.changedTouches[0];
       touchId = touch.identifier;
-      origin = { x: joystick.offsetLeft + joystick.offsetWidth / 2, y: joystick.offsetTop + joystick.offsetHeight / 2 };
+      origin = {
+        x: joystick.offsetLeft + joystick.offsetWidth / 2,
+        y: joystick.offsetTop + joystick.offsetHeight / 2
+      };
+      // stickCenter();
     });
 
     joystick.addEventListener('touchmove', (e) => {
