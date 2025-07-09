@@ -166,25 +166,38 @@
     function drawBackgroundSnakes() {
       backgroundSnakes.removeChildren();
 
-      // Use a finer grid to fill the entire canvas
       const cellSize = Math.floor(Math.min(app.screen.width, app.screen.height) / Math.max(GRID_X, GRID_Y));
       const cols = Math.ceil(app.screen.width / cellSize);
       const rows = Math.ceil(app.screen.height / cellSize);
       const snakeLength = 3;
 
+      // Playground bounds
+      const px = getOffsetX();
+      const py = getOffsetY();
+      const pw = getCellSize() * GRID_X;
+      const ph = getCellSize() * GRID_Y;
+
       for (let x = 0; x < cols; x++) {
         for (let y = 0; y < rows; y++) {
           if (x + snakeLength <= cols) {
             for (let i = 0; i < snakeLength; i++) {
-              const g = new PIXI.Graphics();
-              g.beginFill(0x004400, 0.1);
-              g.drawCircle(
-                (x + i) * cellSize + cellSize / 2,
-                y * cellSize + cellSize / 2,
-                cellSize / 3
-              );
-              g.endFill();
-              backgroundSnakes.addChild(g);
+              const cx = (x + i) * cellSize + cellSize / 2;
+              const cy = y * cellSize + cellSize / 2;
+              // Only draw if center is outside the playground
+              if (
+                cx < px || cx > px + pw ||
+                cy < py || cy > py + ph
+              ) {
+                const g = new PIXI.Graphics();
+                g.beginFill(0x004400, 0.1);
+                g.drawCircle(
+                  cx,
+                  cy,
+                  cellSize / 3
+                );
+                g.endFill();
+                backgroundSnakes.addChild(g);
+              }
             }
           }
         }
@@ -326,7 +339,7 @@
       snake = [{ x: 5, y: 5 }];
       direction = "right";
       score = 0;
-      speed = 200;
+      speed = 150;
       isMoving = false;
       startTime = Date.now();
       obstacles = [];
@@ -577,7 +590,6 @@
         x: joystick.offsetLeft + joystick.offsetWidth / 2,
         y: joystick.offsetTop + joystick.offsetHeight / 2
       };
-      // stickCenter();
     });
 
     joystick.addEventListener('touchmove', (e) => {
